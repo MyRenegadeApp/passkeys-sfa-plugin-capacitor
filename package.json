@@ -36,6 +36,7 @@
     "@web3auth/single-factor-auth": "^9.x"
   },
   "dependencies": {
+    "@darkedges/capacitor-native-webauthn": "^0.0.4",
     "@simplewebauthn/browser": "^10.0.0",
     "@simplewebauthn/types": "^10.0.0",
     "@toruslabs/eccrypto": "^5.0.4",

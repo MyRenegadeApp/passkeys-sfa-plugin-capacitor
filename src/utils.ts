@@ -153,3 +153,30 @@ export const getUserName = (userInfo: AuthUserInfo) => {
   if (typeOfLogin && typeOfLogin !== "jwt") return `${typeOfLogin}|${email || name || verifierId}`;
   return email || name || verifierId;
 };
+
+// Add Capacitor type declaration to Window interface
+declare global {
+  interface Window {
+    Capacitor?: {
+      isNativePlatform?: () => boolean;
+    };
+  }
+}
+
+/**
+ * Checks if the application is running on a native platform.
+ *
+ * This function determines whether the current environment is a native platform
+ * by using the Capacitor framework's `isNativePlatform` method, if available.
+ *
+ * @function
+ * @returns {boolean} Returns `true` if the application is running on a native platform,
+ *                    otherwise returns `false`.
+ */
+export const isNativePlatform = (): boolean => {
+  if (window?.Capacitor?.isNativePlatform) {
+    return window.Capacitor.isNativePlatform();
+  }
+
+  return false;
+};

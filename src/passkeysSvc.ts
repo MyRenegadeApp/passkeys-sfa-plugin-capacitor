@@ -1,3 +1,4 @@
+import { WebAuthn } from "@darkedges/capacitor-native-webauthn";
 import { startAuthentication, startRegistration } from "@simplewebauthn/browser";
 import {
   AuthenticationResponseJSON,
@@ -11,7 +12,7 @@ import { BUILD_ENV, type BUILD_ENV_TYPE, WEB3AUTH_NETWORK_TYPE } from "@web3auth
 import log from "loglevel";
 
 import { ListPasskeyResponse, PasskeyServiceEndpoints } from "./interfaces";
-import { getPasskeyEndpoints } from "./utils";
+import { getPasskeyEndpoints, isNativePlatform } from "./utils";
 
 export interface ILoginData {
   authenticationResponse: AuthenticationResponseJSON;
@@ -60,7 +61,16 @@ export default class PasskeyService {
     const data = await this.getRegistrationOptions(params);
     const { options, trackingId } = data;
     this.trackingId = trackingId;
-    const verificationResponse = await startRegistration(options);
+
+    console.log(options);
+
+    let verificationResponse;
+    if (isNativePlatform()) {
+      verificationResponse = await WebAuthn.startRegistration(options);
+    } else {
+      verificationResponse = await startRegistration(options);
+    }
+
     return verificationResponse;
   }
 
@@ -73,7 +83,14 @@ export default class PasskeyService {
     const data = await this.getAuthenticationOptions(authenticatorId);
     const { options, trackingId } = data;
     this.trackingId = trackingId;
-    const verificationResponse = await startAuthentication(options);
+
+    let verificationResponse;
+    if (isNativePlatform()) {
+      verificationResponse = await WebAuthn.startAuthentication(options);
+    } else {
+      verificationResponse = await startAuthentication(options);
+    }
+
     const result = await this.verifyAuthentication(verificationResponse);
     if (result && result.verified && result.data) {
       log.info("authentication response", verificationResponse);
@@ -164,7 +181,15 @@ export default class PasskeyService {
     authenticatorAttachment?: AuthenticatorAttachment;
   }) {
     try {
-      const response = await post<{ success: boolean; data: { options: PublicKeyCredentialCreationOptionsJSON; trackingId: string } }>(
+      console.log({
+        name: this.rpName,
+        id: this.rpID,
+      });
+
+      const response = await post<{
+        success: boolean;
+        data: { options: PublicKeyCredentialCreationOptionsJSON; trackingId: string };
+      }>(
         this.endpoints.register.options,
         {
           web3auth_client_id: this.web3authClientId,
@@ -202,7 +227,11 @@ export default class PasskeyService {
   private async verifyRegistration(verificationResponse: RegistrationResponseJSON, signatures: string[], token: string, metadata: string) {
     if (!this.trackingId) throw new Error("trackingId is required, please restart the process again.");
     try {
-      const response = await post<{ verified: boolean; error?: string; data?: { challenge_timestamp: string; credential_public_key: string } }>(
+      const response = await post<{
+        verified: boolean;
+        error?: string;
+        data?: { challenge_timestamp: string; credential_public_key: string };
+      }>(
         this.endpoints.register.verify,
         {
           web3auth_client_id: this.web3authClientId,
@@ -234,15 +263,15 @@ export default class PasskeyService {
 
   private async getAuthenticationOptions(authenticatorId?: string) {
     try {
-      const response = await post<{ success: boolean; data: { options: PublicKeyCredentialCreationOptionsJSON; trackingId: string } }>(
-        this.endpoints.authenticate.options,
-        {
-          web3auth_client_id: this.web3authClientId,
-          rp_id: this.rpID,
-          authenticator_id: authenticatorId,
-          network: this.web3authNetwork,
-        }
-      );
+      const response = await post<{
+        success: boolean;
+        data: { options: PublicKeyCredentialCreationOptionsJSON; trackingId: string };
+      }>(this.endpoints.authenticate.options, {
+        web3auth_client_id: this.web3authClientId,
+        rp_id: this.rpID,
+        authenticator_id: authenticatorId,
+        network: this.web3authNetwork,
+      });
       if (response.success) {
         return response.data;
       }
